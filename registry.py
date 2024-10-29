@@ -187,7 +187,7 @@ class Registry:
 
     # this is required for proper digest processing
     HEADERS = {"Accept":
-               "application/vnd.docker.distribution.manifest.v2+json"}
+               "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json"}
 
     def __init__(self):
         self.username = None
@@ -264,11 +264,20 @@ class Registry:
         return None
 
     def list_images(self):
-        result = self.send('/v2/_catalog?n=10000')
-        if result is None:
-            return []
+        images = []
+        last = ""
+        # loop through all pages and get 10 records every time
+        while True:
+            result = self.send('/v2/_catalog?n=1000&last=' + last)
+            if result is None:
+                return images
+            repos = json.loads(result.text)['repositories']
+            if len(repos) == 0:
+                break
+            images += repos
+            last = repos[-1]
 
-        return json.loads(result.text)['repositories']
+        return images
 
     def list_tags(self, image_name):
         result = self.send("/v2/{0}/tags/list".format(image_name))
